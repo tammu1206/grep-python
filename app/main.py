@@ -1,210 +1,215 @@
-import os
 import sys
-from io import IOBase, StringIO
-# import pyparsing - available if you need it!
-# import lark - available if you need it!
-_is_verbose = "VERBOSE" in os.environ
-# List of subgroup matchers
-references = []
-def _d(s: str, end="\n"):
-    if not _is_verbose:
-        return
-    print(s, file=sys.stderr, end=end)
-def _literal_matcher(c: str):
-    def m(f: StringIO):
-        s = f.read(1)
-        _d(f"{s} == {c}?")
-        return s == c
-    return m
-def _group_matcher(chars: str, is_pos: bool):
-    def m(f: StringIO) -> bool:
-        s = f.read(1)
-        res = s and (s in chars) == is_pos
-        _d(f'{s} {"" if is_pos else "not "}in {chars}? {res}')
-        return res
-    return m
-def _endline_matcher():
-    def m(f: StringIO):
-        s = f.read(1)
-        _d(f'end? {s == ""}')
-        return s == "" or s == "\n"
-    return m
-def _word_matcher():
-    def m(f: StringIO):
-        s = f.read(1)
-        return s.isalnum() or s == "_"
-    return m
-def _zero_more_matcher(pm):
-    def m(f: StringIO):
-        while True:
-            pos = f.tell()
-            if not pm(f):
-                f.seek(pos)
-                break
+import string
+def match_pattern(initial_input_line: str, initial_pat: str):
+    input_line = initial_input_line = initial_input_line.removesuffix("\n")
+    initial_len = len(input_line)
+    pat = initial_pat
+    if pat == "":
         return True
-    return m
-def _zero_one_matcher(pm):
-    def m(f: StringIO) -> bool:
-        pos = f.tell()
-        if not pm(f):
-            f.seek(pos)
-        return True
-    return m
-def _wildcard_matcher(f: StringIO) -> bool:
-    s = f.read(1)
-    return s != "" or s != "\n"
-class SubgroupMatcher(object):
-    matchers = []
-    def __init__(self, choices):
-        self.choices = choices
-    def __call__(self, f: StringIO) -> bool:
-        for choice in self.choices:
-            _d("try choice")
-            pos = f.tell()
-            if choice(f):
-                l = f.tell() - pos
-                f.seek(pos)
-                result = f.read(l)
-                self.matchers = [_literal_matcher(c) for c in result]
-                _d(f'choice "{result}" matches')
-                return True
-            f.seek(pos)
+    if input_line == "":
         return False
-    def back_matcher(self, f: IOBase) -> bool:
-        pos = f.tell()
-        if all(m(f) for m in self.matchers):
-            return True
-        f.seek(pos)
-        return False
-def _subgroup_matcher(pf):
-    choices = []
+    backtrack_stack = [input_line]
+    cap_groups = []
+    cap_group_start = None
     while True:
-        nm = pattern_to_matcher(pf, ["|", "(", ")"])
-        c = pf.read(1)
-        if c == "|":
-            _d("add choice")
-            choices.append(nm)
-        elif c == ")":
-            _d("add choice")
-            choices.append(nm)
-            _d("finish choice")
-            break
-        elif c == "(":
-            choices.append(_subgroup_matcher(pf))
-        else:
-            raise Exception(f"Unknown char in subgroup: {c}")
-    def m(f):
-        for choice in choices:
-            _d("try choice")
-            pos = f.tell()
-            if choice(f):
-                _d("choice matches")
+        def try_match():
+            nonlocal input_line, pat, initial_len
+            # print(f"{input_line=!r} {pat=!r}")
+            if pat.startswith("^"):
+                if len(input_line) != initial_len:
+                    return False
+                pat = pat[1:]
                 return True
-            f.seek(pos)
-        return False
-    return SubgroupMatcher(choices)
-def _next_matcher(pf: IOBase, end):
-    pos = pf.tell()
-    c = pf.read(1)
-    if c in end:
-        pf.seek(pos)
-        return None
-    matcher = None
-    if c == "\\":
-        c = pf.read(1)
-        if c == "d":
-            matcher = lambda f: f.read(1).isdigit()
-        elif c == "w":
-            matcher = _word_matcher()
-        elif c.isdigit():
-            _d(f"back reference matcher: {c}")
-            matcher = references[int(c) - 1].back_matcher
-        else:
-            matcher = _literal_matcher(c)
-    elif c == "[":
-        c = pf.read(1)
-        is_neg = c == "^"
-        chars = "" if is_neg else c
-        while (c := pf.read(1)) != "]":
-            chars += c
-        _d(f"group matcher for: {chars}")
-        matcher = _group_matcher(chars, not is_neg)
-    elif c == "(":
-        _d("subgroup matcher")
-        matcher = _subgroup_matcher(pf)
-        references.append(matcher)
-    elif c == "$":
-        _d("end matcher")
-        matcher = _endline_matcher()
-    elif c == ".":
-        _d("wildcard matcher")
-        matcher = _wildcard_matcher
-    else:
-        _d(f"literal matcher for: {c}")
-        matcher = _literal_matcher(c)
-    # Check repeater
-    pos = pf.tell()
-    c = pf.read(1)
-    if c == "+":
-        _d("one or more matcher")
-        m = matcher
-        matcher = lambda f: m(f) and _zero_more_matcher(m)(f)
-    elif c == "*":
-        _d("zero or more matcher")
-        matcher = _zero_more_matcher(matcher)
-    elif c == "?":
-        _d("zero or one matcher")
-        matcher = _zero_one_matcher(matcher)
-    else:
-        pf.seek(pos)
-    return matcher
-def _only_start_matcher(matchers):
-    def m(f: StringIO) -> bool:
-        for m in matchers:
-            if not m(f):
-                return False
+            if pat.startswith("$"):
+                if input_line != "":
+                    return False
+                pat = pat[1:]
+                return True
+            import sys
+import string
+def match_pattern(initial_input_line: str, initial_pat: str):
+    input_line = initial_input_line = initial_input_line.removesuffix("\n")
+    initial_len = len(input_line)
+    pat = initial_pat
+    if pat == "":
         return True
-    return m
-def _scan_matcher(matchers):
-    def m(f: StringIO) -> bool:
-        c = "start"
-        while c:
-            pos = f.tell()
-            for m in matchers:
-                if not m(f):
-                    f.seek(pos)
-                    break
-            else:
-                return True
-            c = f.read(1)
+    if input_line == "":
         return False
-    return m
-def pattern_to_matcher(pf: StringIO, end=["", "\n"]):
-    pos = pf.tell()
-    is_start = pf.read(1) == "^"
-    if not is_start:
-        pf.seek(pos)
-    matchers = []
-    for m in iter(lambda: _next_matcher(pf, end), None):
-        _d("add matcher")
-        matchers.append(m)
-    if is_start:
-        _d("_only_start_matcher")
-        return _only_start_matcher(matchers)
-    else:
-        _d("_scan_matcher")
-        return _scan_matcher(matchers)
-def match_pattern(input_line: str, pattern: str):
-    matcher = pattern_to_matcher(StringIO(pattern))
-    return matcher(StringIO(input_line))
+    backtrack_stack = [input_line]
+    cap_groups = []
+    cap_group_start = None
+    while True:
+        def try_match():
+            nonlocal input_line, pat, initial_len
+            # print(f"{input_line=!r} {pat=!r}")
+            if pat.startswith("^"):
+                if len(input_line) != initial_len:
+                    return False
+                pat = pat[1:]
+                return True
+            if pat.startswith("$"):
+                if input_line != "":
+                    return False
+                pat = pat[1:]
+                return True
+            if pat and len(pat) >= 2 and pat[0] == "\\" and pat[1].isdigit():
+                target = ""
+                pat = pat[1:]
+                while pat and pat[0].isdigit():
+                    target += pat[0]
+                    pat = pat[1:]
+                target = int(target) - 1
+                if input_line.startswith(cap_groups[target]):
+                    input_line = input_line[len(cap_groups[target]) :]
+                    return True
+                else:
+                    return False
+            if len(input_line) == 0:
+                return False
+            alt = set()
+            anything = False
+            positive = True
+            if pat.startswith("\\d"):
+                alt |= set(string.digits)
+                pat = pat[2:]
+            elif pat.startswith("\\w"):
+                alt |= set(string.ascii_letters)
+                alt |= set(string.digits)
+                alt |= set("_")
+                pat = pat[2:]
+            elif pat.startswith("[^"):
+                positive = False
+                end = pat.find("]", 2)
+                if end == -1:
+                    raise RuntimeError(f"Non-matching bracket")
+                alt |= set(pat[2:end])
+                pat = pat[end + 1 :]
+            elif pat.startswith("["):
+                positive = True
+                end = pat.find("]", 1)
+                if end == -1:
+                    raise RuntimeError(f"Non-matching bracket")
+                alt |= set(pat[1:end])
+                pat = pat[end + 1 :]
+            else:
+                if pat[0] == ".":
+                    anything = True
+                else:
+                    alt |= set([pat[0]])
+                pat = pat[1:]
+            # TODO: Implement wildcard support for parens
+            wildcard = None
+            if pat.startswith("+"):
+                wildcard = "+"
+                pat = pat[1:]
+            elif pat.startswith("?"):
+                wildcard = "?"
+                pat = pat[1:]
+            n_matches = 0
+            while len(input_line) > 0 and (
+                anything or (input_line[0] in alt) == positive
+            ):
+                input_line = input_line[1:]
+                n_matches += 1
+                if wildcard in {None, "?"}:
+                    break
+            if wildcard in {None, "+"} and n_matches == 0:
+                return False
+            return True
+        def handle_group_end(match_ok: bool):
+            nonlocal cap_group_start, cap_groups, backtrack_stack
+            cap_group_end = len(initial_input_line) - len(input_line)
+            assert cap_group_start is not None
+            if match_ok:
+                cap_groups.append(initial_input_line[cap_group_start:cap_group_end])
+            cap_group_start = None
+            backtrack_stack.pop()
+            # print(cap_groups)
+        if pat.startswith("("):
+            cap_group_start = len(initial_input_line) - len(input_line)
+            backtrack_stack.append(input_line)
+            pat = pat[1:]
+        if pat.startswith(")"):
+            handle_group_end(True)
+            succeeded = True
+            pat = pat[1:]
+        else:
+            succeeded = try_match()
+        def drop_current_group():
+            nonlocal pat
+            level = 1
+            while True:
+                # print("group drop:", pat)
+                if pat == "":
+                    break
+                elif pat[0] == "(":
+                    level += 1
+                    pat = pat[1:]
+                elif pat[0] == ")":
+                    level -= 1
+                    pat = pat[1:]
+                    if level == 0:
+                        break
+                else:
+                    pat = pat[1:]
+            if len(backtrack_stack) == 1:
+                level -= 1
+            if level != 0:
+                raise RuntimeError("Unmatched paren")
+        def drop_current_alt():
+            nonlocal pat
+            level = 1
+            while True:
+                # print("alt drop:", pat)
+                if pat == "":
+                    break
+                elif pat[0] == "(":
+                    level += 1
+                    pat = pat[1:]
+                elif pat[0] == ")":
+                    level -= 1
+                    if level == 0:
+                        break
+                    pat = pat[1:]
+                else:
+                    if pat[0] == "|" and level == 1:
+                        return
+                    else:
+                        pat = pat[1:]
+            if len(backtrack_stack) == 1:
+                level -= 1
+            if level != 0:
+                raise RuntimeError("Unmatched paren")
+        match pat, succeeded:
+            case "", True:
+                return True
+            case _, True:
+                if pat.startswith("|"):
+                    drop_current_group()
+                    handle_group_end(True)
+                if len(pat) == 0:
+                    return True
+            case _, False:
+                drop_current_alt()
+                if pat.startswith(")"):
+                    handle_group_end(False)
+                    pat = pat[1:]
+                if pat.startswith("|"):
+                    input_line = backtrack_stack[-1]
+                    pat = pat[1:]
+                else:
+                    cap_groups = []
+                    cap_group_start = None
+                    pat = initial_pat
+                    input_line = backtrack_stack[-1] = backtrack_stack[-1][1:]
+                    if len(input_line) == 0:
+                        return False
 def main():
     pattern = sys.argv[2]
     input_line = sys.stdin.read()
     if sys.argv[1] != "-E":
         print("Expected first argument to be '-E'")
         exit(1)
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
     if match_pattern(input_line, pattern):
         exit(0)
     else:
