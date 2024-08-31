@@ -1,49 +1,50 @@
 import sys
-import re
-
+# import pyparsing - available if you need it!
+# import lark - available if you need it!
+class Pattern:
+    DIGIT = "\d"
+    ALNUM = "\w"
+# def combined_patterns(input_line, pattern):
 def match_pattern(input_line, pattern):
-    # Initialize regex pattern string
-    regex_pattern = ''
-
-    # Split pattern into segments
-    segments = pattern.split(' ')
-    
-    for segment in segments:
-        if segment == r"\d":
-            regex_pattern += r'\d'
-        elif segment == r"\w":
-            regex_pattern += r'\w'
-        elif segment.startswith('[') and segment.endswith(']'):
-            if segment[1] == '^':
-                excluded_chars = set(segment[2:-1])
-                regex_pattern += f'[^{''.join(excluded_chars)}]'
-            else:
-                allowed_chars = set(segment[1:-1])
-                regex_pattern += f'[{''.join(allowed_chars)}]'
+    if len(input_line) == 0 and len(pattern) == 0:
+        return True
+    if not pattern:
+        return True
+    if not input_line:
+        return False
+    if pattern[0] == input_line[0]:
+        return match_pattern(input_line[1:], pattern[1:])
+    elif pattern[:2] == Pattern.DIGIT:
+        for i in range(len(input_line)):
+            if input_line[i].isdigit():
+                return match_pattern(input_line[i:], pattern[2:])
         else:
-            # Escape literal text
-            regex_pattern += re.escape(segment)
-
-    # Compile the final regex pattern
-    regex = re.compile(f'^{regex_pattern}$')
-    
-    # Match the input line against the compiled regex pattern
-    match = regex.match(input_line)
-    return match is not None
-
+            return False
+    elif pattern[:2] == Pattern.ALNUM:
+        if input_line[0].isalnum():
+            return match_pattern(input_line[1:], pattern[2:])
+        else:
+            return False
+    elif pattern[0] == "[" and pattern[-1] == "]":
+        if pattern[1] == "^":
+            chrs = list(pattern[2:-1])
+            for c in chrs:
+                if c in input_line:
+                    return False
+            return True
+        chrs = list(pattern[1:-1])
+        for c in chrs:
+            if c in input_line:
+                return True
+        return False
+    else:
+         return match_pattern(input_line[1:], pattern)
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: ./your_program.sh -E '<pattern>'")
-        exit(1)
-
     pattern = sys.argv[2]
-    input_line = sys.stdin.read().strip()
-
+    input_line = sys.stdin.read()
     if sys.argv[1] != "-E":
         print("Expected first argument to be '-E'")
         exit(1)
-
-    # Check if the input line matches the pattern
     if match_pattern(input_line, pattern):
         exit(0)
     else:
