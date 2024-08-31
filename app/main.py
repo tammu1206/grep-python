@@ -6,7 +6,11 @@ import sys
 
 def match_pattern(input_line, pattern):
     if len(pattern) == 1:
+        # Original single-character pattern match
         return pattern in input_line
+    elif pattern == r"\d":
+        # Check for any digit in the input line
+        return any(char.isdigit() for char in input_line)
     else:
         raise RuntimeError(f"Unhandled pattern: {pattern}")
 
@@ -22,7 +26,7 @@ def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
 
-    # Uncomment this block to pass the first stage
+    # Check if the input line matches the pattern
     if match_pattern(input_line, pattern):
         exit(0)
     else:
