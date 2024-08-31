@@ -2,11 +2,11 @@ import sys
 import re
 
 def match_pattern(input_line, pattern):
-    # Split the pattern into segments for character classes and literals
-    segments = pattern.split(' ')
-    
-    # Initialize a regex pattern to be built dynamically
+    # Initialize regex pattern string
     regex_pattern = ''
+
+    # Split pattern into segments
+    segments = pattern.split(' ')
     
     for segment in segments:
         if segment == r"\d":
@@ -21,25 +21,27 @@ def match_pattern(input_line, pattern):
                 allowed_chars = set(segment[1:-1])
                 regex_pattern += f'[{''.join(allowed_chars)}]'
         else:
-            # Treat as literal text
+            # Escape literal text
             regex_pattern += re.escape(segment)
-    
+
     # Compile the final regex pattern
     regex = re.compile(f'^{regex_pattern}$')
     
     # Match the input line against the compiled regex pattern
-    return bool(regex.match(input_line))
+    match = regex.match(input_line)
+    return match is not None
 
 def main():
+    if len(sys.argv) != 3:
+        print("Usage: ./your_program.sh -E '<pattern>'")
+        exit(1)
+
     pattern = sys.argv[2]
     input_line = sys.stdin.read().strip()
 
     if sys.argv[1] != "-E":
         print("Expected first argument to be '-E'")
         exit(1)
-
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
 
     # Check if the input line matches the pattern
     if match_pattern(input_line, pattern):
