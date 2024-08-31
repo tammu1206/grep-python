@@ -14,6 +14,10 @@ def match_pattern(input_line, pattern):
     elif pattern == r"\w":
         # Check for any alphanumeric character or underscore in the input line
         return any(char.isalnum() or char == '_' for char in input_line)
+    elif pattern.startswith('[') and pattern.endswith(']'):
+        # Check for any character in the positive character group
+        allowed_chars = set(pattern[1:-1])  # Extract characters inside the brackets
+        return any(char in allowed_chars for char in input_line)
     else:
         raise RuntimeError(f"Unhandled pattern: {pattern}")
 
