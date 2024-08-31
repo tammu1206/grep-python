@@ -1,35 +1,38 @@
 import sys
-
-# import pyparsing - available if you need it!
-# import lark - available if you need it!
-
+import re
 
 def match_pattern(input_line, pattern):
-    if len(pattern) == 1:
-        # Original single-character pattern match
-        return pattern in input_line
-    elif pattern == r"\d":
-        # Check for any digit in the input line
-        return any(char.isdigit() for char in input_line)
-    elif pattern == r"\w":
-        # Check for any alphanumeric character or underscore in the input line
-        return any(char.isalnum() or char == '_' for char in input_line)
-    elif pattern.startswith('[') and pattern.endswith(']'):
-        if pattern[1] == '^':
-            # Negative character group
-            excluded_chars = set(pattern[2:-1])  # Extract characters after '^' inside the brackets
-            return any(char not in excluded_chars for char in input_line)
+    # Split the pattern into segments for character classes and literals
+    segments = pattern.split(' ')
+    
+    # Initialize a regex pattern to be built dynamically
+    regex_pattern = ''
+    
+    for segment in segments:
+        if segment == r"\d":
+            regex_pattern += r'\d'
+        elif segment == r"\w":
+            regex_pattern += r'\w'
+        elif segment.startswith('[') and segment.endswith(']'):
+            if segment[1] == '^':
+                excluded_chars = set(segment[2:-1])
+                regex_pattern += f'[^{''.join(excluded_chars)}]'
+            else:
+                allowed_chars = set(segment[1:-1])
+                regex_pattern += f'[{''.join(allowed_chars)}]'
         else:
-            # Positive character group
-            allowed_chars = set(pattern[1:-1])  # Extract characters inside the brackets
-            return any(char in allowed_chars for char in input_line)
-    else:
-        raise RuntimeError(f"Unhandled pattern: {pattern}")
-
+            # Treat as literal text
+            regex_pattern += re.escape(segment)
+    
+    # Compile the final regex pattern
+    regex = re.compile(f'^{regex_pattern}$')
+    
+    # Match the input line against the compiled regex pattern
+    return bool(regex.match(input_line))
 
 def main():
     pattern = sys.argv[2]
-    input_line = sys.stdin.read()
+    input_line = sys.stdin.read().strip()
 
     if sys.argv[1] != "-E":
         print("Expected first argument to be '-E'")
@@ -43,7 +46,6 @@ def main():
         exit(0)
     else:
         exit(1)
-
 
 if __name__ == "__main__":
     main()
