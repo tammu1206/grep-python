@@ -45,6 +45,8 @@ def match_pattern(input_line, pattern):
         if pattern[1] == "?":
             return match_pattern(input_line, pattern[2:])
         return False
+    elif pattern[0] == ".":
+        return match_pattern(input_line[1:], pattern[1:])
     elif pattern[:2] == Pattern.DIGIT:
         for i in range(len(input_line)):
             if input_line[i].isdigit():
